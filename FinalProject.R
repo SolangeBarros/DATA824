@@ -6,6 +6,7 @@ library(psych)
 library(ggplot2)
 library(ggcorrplot)
 library(tidyr)
+library(DT)
 
 data <- read_csv("C:/Users/Solange/Dropbox/REMS/Data 824/Final project/pisa_latam1.csv")
 
@@ -63,8 +64,8 @@ ui <- fluidPage(
                  plotOutput("boxPlot")),
         tabPanel("EOS vs SES",
                  plotOutput("scatterPlot")),
-        tabPanel("Correlation Matrix",
-                 plotOutput("corrMatrixPlot"))
+        tabPanel("Density Graph",
+                 plotOutput("densityPlot"))
       )
     )
   )
@@ -113,37 +114,25 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  # Correlation plot
-  output$corrMatrixPlot <- renderPlot({
+  # Density
+  output$densityPlot <- renderPlot({
     df <- filtered_data()
-    numeric_df <- df %>%
-      select(where(is.numeric)) %>%
-      drop_na()
     
-    if (ncol(numeric_df) < 2) {
+    if (nrow(df) == 0) {
       plot.new()
-      title("Not enough numeric variables to show correlation matrix")
+      title("No data available for selected filters")
       return()
     }
     
-    cor_matrix <- cor(numeric_df, use = "pairwise.complete.obs")
-    cor_melt <- as.data.frame(cor_matrix) %>%
-      rownames_to_column("Var1") %>%
-      pivot_longer(-Var1, names_to = "Var2", values_to = "value")
-    
-    ggplot(cor_melt, aes(x = Var1, y = Var2, fill = value)) +
-      geom_tile(color = "white") +
-      scale_fill_gradient2(low = "tomato", high = "steelblue", mid = "white",
-                           midpoint = 0, limit = c(-1,1), space = "Lab",
-                           name = "Correlation") +
+    ggplot(df, aes(x = Expected_occupation_sts, fill = CNT)) +
+      geom_density(alpha = 0.6) +
+      facet_wrap(~CNT, scales = "free_y") +
       theme_minimal() +
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            panel.grid = element_blank(),
-            axis.title = element_blank()) +
-      labs(title = paste("Correlation Matrix -", input$country))
+      labs(title = "Density of EOS by Country",
+           x = "Expected Occupational Status",
+           y = "Density") +
+      theme(legend.position = "none")
   })
-  
-  
   # Download filtered data
   output$downloadData <- downloadHandler(
     filename = function() {
